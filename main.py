@@ -43,7 +43,8 @@ def parse_expression(fnc_formula):
 
                 matrix_lit[index_cl, literali_all[literal]] = 1
 
-    return matrix_lit
+    inv_literali_all = {v: k for k, v in literali_all.items()}
+    return matrix_lit, inv_literali_all
 
 
 def fnc_sat_backtracking(step, n, unchecked_lit, interpretation, matrix_lit):
@@ -80,64 +81,96 @@ def fnc_sat_backtracking(step, n, unchecked_lit, interpretation, matrix_lit):
     return False
 
 
-def fnc_sat(expression_literals):
+def fnc_sat(matrix_lit):
     """
 
-    :param expression_literals:
+    :param matrix_lit:
     :return:
     """
-    matrix_lit = parse_expression(expression_literals)
     interpretation = []
     fnc_sat_backtracking(0, len(matrix_lit[0]), 0, interpretation, matrix_lit)
 
 
-# def bdd_sat(matrix_lit):
-#     queue = []
-#
-#     root = Node(matrix_lit)
-#     queue.append((root, 0))
-#     while True:
-#         currTuple = queue.pop()
-#         currNode = currTuple[0]
-#         level = currTuple[1]
-#         # reached a leaf node, tree is complete
-#         if level == len(matrix_lit):
-#             queue.insert(0, currTuple)
-#             break
-#
-#         # built left child for negative case
-#         matrix_lit_copy_st = currNode.value.copy()
-#         matrix_lit_copy_st[:, level] *= -1
-#
-#         # built right child for negative case
-#         matrix_lit_copy_dr = currNode.value.copy()
-#         # matrix_lit_copy_dr[:, level] *= 1
-#
-#         # create left and right nodes
-#         node_l = Node(matrix_lit_copy_st)
-#         node_r = Node(matrix_lit_copy_dr)
-#         # add left and right child
-#         currNode.left = node_l
-#         currNode.right = node_r
-#         # adding nodes to queue
-#         queue.append((node_l, level + 1))
-#         queue.append((node_r, level + 1))
-#
-#     queue.clear()
-#     # replace leaf values with '1's and '0's
-#     while len(queue) is not 0:
-#         currTuple = queue.pop()
-#         currNode = currTuple[0]
-#         currMatrix = currNode.value
-#         for i in range(0, len(currMatrix[:, 0])):
-#             if 1 not in currMatrix[i, :]:
-#                 currNode.value = False
-#                 break
-#             # This code is reached if equation evaluates to true
-#             currNode.value = True
+def simplify_expresion(expresion):
+    expresion = str(expresion)
+    clauses = expresion.split("^")
+    for i in range(0, len(clauses)):
+        # if a clause is false, the whole expression is false
+        if clauses[i] == "(False)" or clauses[i] == "False":
+            return "False"
+        # if a literal in a clause is True, the whole clause is true
+        if "True" in clauses[i]:
+            clauses[i] = "True"
+        # every roaming "False" is useless to the clause, unless is the only thing there
+        clauses[i] = clauses[i].replace("False", "")
+
+    # if the clause end or starts with a "V" remove it
+    for i in range(0, len(clauses)):
+        if clauses[i][1] == "V":
+            clauses[i] = "(" + clauses[i][2:]  # remove first character
+        if clauses[i][len(clauses[i]) - 2] == "V":
+            clauses[i] = clauses[i][:-2] + ")"  # remove last character
+
+    # every roaming "True" is useless to the expression
+    clauses = [i for i in clauses if i != "True"]  # remove all occurrences of "True"
+    # if the expression is the empty string, the expression evaluates to true
+    if len(clauses) == 0:
+        return "True"
+
+    # in the end return a string made up from all the modified clauses from above
+    separator = "^"
+    return separator.join(clauses)
+
+
+def build_tree(expr, literals):
+    queue = []
+
+    root = Node(expr)
+    queue.append((root, 0))
+    while True:
+        currTuple = queue.pop(0)
+        currNode = currTuple[0]
+        level = currTuple[1]
+        # reached a leaf node, tree is complete
+        if level == len(literals):
+            queue.insert(0, currTuple)
+            break
+
+        # built left child for negative case
+        expression_left = str(currNode.value)
+        expression_left = expression_left.replace(literals[level], "False")
+        expression_left = expression_left.replace("~False", "True")
+        expression_left = simplify_expresion(expression_left)
+        print("Left " + expression_left)
+
+        # built right child for negative case
+        expression_right = str(currNode.value)
+        expression_right = expression_right.replace(literals[level], "True")
+        expression_right = expression_right.replace("~True", "False")
+        expression_right = simplify_expresion(expression_right)
+        print("Right " + expression_right)
+
+        # create left and right nodes
+        node_l = Node(expression_left)
+        node_r = Node(expression_right)
+        # add left and right child
+        currNode.left = node_l
+        currNode.right = node_r
+        # adding nodes to queue
+        queue.append((node_l, level + 1))
+        queue.append((node_r, level + 1))
+
+    return root
+
+
+def bdd_sat(expr, literals):
+
+    root = build_tree(expr, literals)
 
 
 if __name__ == '__main__':
     expression = input()
-    fnc_sat(expression)
+    matrix_input, all_literali = parse_expression(expression)
+    fnc_sat(matrix_input)
     print(interpretation_result)
+    bdd_sat(expression, all_literali)
