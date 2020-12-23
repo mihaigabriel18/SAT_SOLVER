@@ -1,6 +1,7 @@
 import numpy as nm
 
 interpretation_result = [None]
+bdd_path = []
 
 
 class Node:
@@ -128,34 +129,34 @@ def build_tree(expr, literals):
     root = Node(expr)
     queue.append((root, 0))
     while True:
-        currTuple = queue.pop(0)
-        currNode = currTuple[0]
-        level = currTuple[1]
+        curr_tuple = queue.pop(0)
+        curr_node = curr_tuple[0]
+        level = curr_tuple[1]
         # reached a leaf node, tree is complete
         if level == len(literals):
-            queue.insert(0, currTuple)
+            queue.insert(0, curr_tuple)
             break
 
         # built left child for negative case
-        expression_left = str(currNode.value)
+        expression_left = str(curr_node.value)
         expression_left = expression_left.replace(literals[level], "False")
         expression_left = expression_left.replace("~False", "True")
         expression_left = simplify_expresion(expression_left)
-        print("Left " + expression_left)
+        # print("Left " + expression_left)
 
         # built right child for negative case
-        expression_right = str(currNode.value)
+        expression_right = str(curr_node.value)
         expression_right = expression_right.replace(literals[level], "True")
         expression_right = expression_right.replace("~True", "False")
         expression_right = simplify_expresion(expression_right)
-        print("Right " + expression_right)
+        # print("Right " + expression_right)
 
         # create left and right nodes
         node_l = Node(expression_left)
         node_r = Node(expression_right)
         # add left and right child
-        currNode.left = node_l
-        currNode.right = node_r
+        curr_node.left = node_l
+        curr_node.right = node_r
         # adding nodes to queue
         queue.append((node_l, level + 1))
         queue.append((node_r, level + 1))
@@ -163,9 +164,33 @@ def build_tree(expr, literals):
     return root
 
 
-def bdd_sat(expr, literals):
+def dfs_search(root, left_right):
 
+    global bdd_path
+    if root is None:
+        return False
+    if left_right == "Left":
+        bdd_path.append(-1)
+    elif left_right == "Right":
+        bdd_path.append(1)
+    if root.value == "True":
+        return True
+    result = dfs_search(root.left, "Left")
+    if result:
+        return True
+    result = dfs_search(root.right, "Right")
+    if result:
+        return True
+    else:
+        bdd_path.pop()
+        return False
+
+
+def bdd_sat(expr, literals):
     root = build_tree(expr, literals)
+    dfs_search(root, "Altceva")
+    for i in range(len(bdd_path), len(literals)):
+        bdd_path.append(-1)  # something random, it doesn't matter
 
 
 if __name__ == '__main__':
@@ -174,3 +199,4 @@ if __name__ == '__main__':
     fnc_sat(matrix_input)
     print(interpretation_result)
     bdd_sat(expression, all_literali)
+    print(bdd_path)
