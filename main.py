@@ -1,7 +1,7 @@
 import numpy as nm
 
 interpretation_result = [None]
-bdd_path = []
+bdd_path = [0]
 
 
 class Node:
@@ -20,7 +20,9 @@ def parse_expression(fnc_formula):
     matrix_lit = nm.zeros((clauze_lungime, 0))
     # iterate over "clauze"
     for index_cl in range(0, len(clauze)):  # for every clause
-        clauza = clauze[index_cl][1:-1]
+        clauza = clauze[index_cl]
+        if clauza[0] == "(":
+            clauza = clauza[1:-1]
         literali = clauza.split("V")
 
         for index_lit in range(0, len(literali)):  # for every literal in clause
@@ -187,8 +189,12 @@ def dfs_search(root, left_right):
 
 
 def bdd_sat(expr, literals):
+    global bdd_path
     root = build_tree(expr, literals)
     dfs_search(root, "Altceva")
+    if len(bdd_path) == 0:
+        bdd_path = [None]  # case of no match
+    bdd_path = bdd_path[1:]  # get rid of the starting "0"
     for i in range(len(bdd_path), len(literals)):
         bdd_path.append(-1)  # something random, it doesn't matter
 
